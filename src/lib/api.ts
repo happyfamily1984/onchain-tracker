@@ -231,7 +231,8 @@ export async function fetchSolana(): Promise<ChainSummary & { sol: SolanaExtra }
     height: epoch.blockHeight,
     lastBlockTime: null,
     tps: tpsAvg,
-    tx24h: Math.round(tpsAvg * 86400),
+    // 검증인 투표 거래를 제외한 사용자 거래 기준
+    tx24h: Math.round((samples.reduce((a, s) => a + s.nonVote, 0) / Math.max(1, samples.length)) * 86400),
     sol: {
       epoch: epoch.epoch,
       slotIndex: epoch.slotIndex,

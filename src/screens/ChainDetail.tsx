@@ -282,7 +282,7 @@ function SolanaSection() {
         <div className="grid">
           <Stat label="TPS (최근 1시간)" value={num(tps, 0)} accent="#14f195" />
           <Stat label="사용자 TPS (투표 제외)" value={num(nonVote, 0)} />
-          <Stat label="예상 일일 거래" value={compact(q.data?.tx24h, 2)} />
+          <Stat label="예상 일일 사용자 거래" value={compact(q.data?.tx24h, 2)} />
           <Stat label="누적 거래" value={d ? compact(d.totalTx, 2) : '-'} />
           <Stat label="블록 높이" value={num(q.data?.height, 0)} />
           <Stat label="슬롯" value={d ? num(d.absoluteSlot, 0) : '-'} />

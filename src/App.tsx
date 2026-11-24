@@ -11,11 +11,12 @@ import Home from './screens/Home'
 import ChainDetail from './screens/ChainDetail'
 import Watchlist from './screens/Watchlist'
 import Whales from './screens/Whales'
+import Insights from './screens/Insights'
 import AddressDetail from './screens/AddressDetail'
 import Settings from './screens/Settings'
 import Privacy from './screens/Privacy'
 
-type Tab = 'home' | 'whale' | 'watch' | 'settings'
+type Tab = 'home' | 'insight' | 'whale' | 'watch' | 'settings'
 type Route =
   | { name: 'chain'; id: ChainId }
   | { name: 'address'; chain: 'bitcoin' | 'ethereum'; address: string }
@@ -70,17 +71,17 @@ export default function App() {
     else window.close()
   }
 
+  const goTab = (t: Tab) => { setStack([]); setTab(t); window.scrollTo(0, 0) }
   const top = stack[stack.length - 1]
   let screen
   if (top?.name === 'chain') screen = <ChainDetail key={top.id} id={top.id} onBack={pop} onAddress={(chain, address) => push({ name: 'address', chain, address })} />
   else if (top?.name === 'address') screen = <AddressDetail key={top.address} chain={top.chain} address={top.address} onBack={pop} />
   else if (top?.name === 'privacy') screen = <Privacy onBack={pop} />
-  else if (tab === 'home') screen = <Home onOpen={(id) => push({ name: 'chain', id })} />
+  else if (tab === 'home') screen = <Home onOpen={(id) => push({ name: 'chain', id })} onInsights={() => goTab('insight')} />
+  else if (tab === 'insight') screen = <Insights />
   else if (tab === 'whale') screen = <Whales onAddress={(chain, address) => push({ name: 'address', chain, address })} />
   else if (tab === 'watch') screen = <Watchlist onOpen={(w) => push({ name: 'address', chain: w.chain, address: w.address })} />
   else screen = <Settings onPrivacy={() => push({ name: 'privacy' })} />
-
-  const goTab = (t: Tab) => { setStack([]); setTab(t); window.scrollTo(0, 0) }
 
   return (
     <div className="app">
@@ -89,6 +90,7 @@ export default function App() {
         <nav className="tabbar">
           {([
             ['home', '홈', 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z'],
+            ['insight', '분석', 'M4 20V10M10 20V4M16 20v-7M22 20H2'],
             ['whale', '고래', 'M2 13c2-5 7-7 12-6 3 .6 5 2.4 6 4l2-3v8l-2-2c-1.5 3-5 5-10 4.5C6 18 3 16 2 13zM16 11h.01'],
             ['watch', '관심 주소', 'M12 17.3l-6.2 3.7 1.6-7L2 9.2l7.1-.6L12 2l2.9 6.6 7.1.6-5.4 4.8 1.6 7z'],
             ['settings', '설정', 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.3 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4z'],

@@ -8,9 +8,11 @@ interface Props {
   format: (v: number) => string
   height?: number
   timeFormat?: (t: number) => string
+  /** 기준선 */
+  refs?: number[]
 }
 
-export default function LineChart({ points, color, format, height = 180, timeFormat }: Props) {
+export default function LineChart({ points, color, format, height = 180, timeFormat, refs }: Props) {
   const wrap = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(320)
   const [hover, setHover] = useState<number | null>(null)
@@ -28,6 +30,8 @@ export default function LineChart({ points, color, format, height = 180, timeFor
     if (points.length < 2) return null
     const vs = points.map((p) => p.v)
     let min = Math.min(...vs), max = Math.max(...vs)
+    // 데이터 범위 근처의 기준선은 보이도록 범위 확장
+    for (const r of refs ?? []) { const span = max - min || 1; if (r >= min - span * 0.3 && r <= max + span * 0.3) { min = Math.min(min, r); max = Math.max(max, r) } }
     if (min === max) { min -= 1; max += 1 }
     const span = max - min
     min -= span * 0.08; max += span * 0.08
@@ -37,7 +41,7 @@ export default function LineChart({ points, color, format, height = 180, timeFor
     const line = points.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join('')
     const area = `${line}L${x(t1).toFixed(1)},${height - pad.b}L${x(t0).toFixed(1)},${height - pad.b}Z`
     return { x, y, line, area, t0, t1 }
-  }, [points, w, height])
+  }, [points, w, height, refs])
 
   if (!geo) return <div className="chart-empty" style={{ height }}>데이터가 부족합니다</div>
 
@@ -81,6 +85,9 @@ export default function LineChart({ points, color, format, height = 180, timeFor
           {[0.25, 0.5, 0.75].map((f) => (
             <line key={f} x1={0} x2={w} y1={pad.t + f * (height - pad.t - pad.b)} y2={pad.t + f * (height - pad.t - pad.b)} className="grid" />
           ))}
+          {(refs ?? []).map((r) => { const yy = geo.y(r); return yy >= pad.t && yy <= height - pad.b ? (
+            <g key={r}><line x1={0} x2={w} y1={yy} y2={yy} className="ref" /><text x={w - 2} y={yy - 3} textAnchor="end" className="axis">{format(r)}</text></g>
+          ) : null })}
           <path d={geo.area} fill={`url(#${gid})`} />
           <path d={geo.line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
           {hover != null && (
