@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'com.happyfamily.onchaintracker',
-  appName: '온체인 트래커',
+  appName: '코인 고래 레이더',
   webDir: 'dist',
   backgroundColor: '#0b0e14',
   plugins: {

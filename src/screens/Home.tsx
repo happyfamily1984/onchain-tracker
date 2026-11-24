@@ -29,7 +29,7 @@ export default function Home({ onOpen, onInsights }: { onOpen: (id: ChainId) => 
   return (
     <div className="screen">
       <Header
-        title="온체인 트래커"
+        title="🐋 코인 고래 레이더"
         sub={<Updated at={ov.updatedAt} error={ov.error} />}
         right={<RefreshButton loading={ov.loading || pulse.loading} onClick={() => { ov.reload(); pulse.reload() }} />}
       />
