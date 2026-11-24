@@ -5,6 +5,7 @@ import { compact, money, num, pct } from '../lib/format'
 import { useIndicators } from './Insights'
 import { TONE_COLOR } from '../lib/indicators'
 import { Term } from '../components/Term'
+import { useOutlook } from '../components/Outlook'
 import { CoinIcon, Header, RefreshButton, Section, Segmented, Skeleton, Updated } from '../components/ui'
 
 type Sort = 'cap' | 'tx' | 'chg'
@@ -118,6 +119,7 @@ function InsightSummary({ onClick }: { onClick: () => void }) {
         <b style={{ color: c, fontSize: 16 }}>{t.say}</b>
       </div>
       <div className="dim small" style={{ marginTop: 2 }}>0점 = 아주 쌈 · 100점 = 아주 비쌈</div>
+      <OutlookLine />
       {top.map((i) => (
         <div key={i.id} className="ins-line">
           <span className="ins-dot" style={{ background: TONE_COLOR[i.zone.tone] }} />
@@ -125,5 +127,19 @@ function InsightSummary({ onClick }: { onClick: () => void }) {
         </div>
       ))}
     </button>
+  )
+}
+
+/** 홈 요약: 비트코인 상승 가능성 한 줄 */
+function OutlookLine() {
+  const q = useOutlook('bitcoin')
+  if (!q.data) return null
+  const c = (p: number) => (p >= 55 ? '#22c77a' : p > 45 ? '#a3adc2' : '#ff5c6c')
+  return (
+    <div className="ins-line" style={{ marginTop: 10 }}>
+      <span>📈 <b>비트코인 오를 가능성</b>{' '}
+        {q.data.horizons.map((h, i) => <span key={h.id}>{i > 0 && ' · '}{h.label}({h.period}) <b style={{ color: c(h.prob) }}>{h.prob}%</b></span>)}
+      </span>
+    </div>
   )
 }

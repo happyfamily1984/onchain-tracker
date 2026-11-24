@@ -14,7 +14,7 @@ function Toggle({ label, sub, on, onChange }: { label: string; sub?: string; on:
   )
 }
 
-export const APP_VERSION = '1.1.0'
+export const APP_VERSION = '1.2.0'
 
 export default function Settings({ onPrivacy, onGlossary }: { onPrivacy: () => void; onGlossary: () => void }) {
   const s = useSettings()

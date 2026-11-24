@@ -3,6 +3,7 @@ import { fetchPulse, useFetch } from '../lib/api'
 import { fetchIndicators, TONE_COLOR, type Indicator, type IndicatorResult } from '../lib/indicators'
 import { num } from '../lib/format'
 import LineChart from '../components/LineChart'
+import Outlook from '../components/Outlook'
 import { Term } from '../components/Term'
 import { Header, RefreshButton, Section, Skeleton, Updated } from '../components/ui'
 import { useFetch_overview } from './Home'
@@ -42,6 +43,7 @@ export default function Insights() {
         <p className="explain" style={{ marginTop: 6 }}>
           블록체인에는 모든 거래가 공개돼 있어요(<Term k="onchain">온체인 데이터</Term>). 이 기록을 분석해서 <b>지금 비트코인이 싼지 비싼지, 돈이 들어오는지 나가는지</b>를 쉽게 알려드려요.
         </p>
+        <Outlook />
         {!d && !q.error && <><Skeleton h={180} /><Skeleton h={160} /><Skeleton h={160} /></>}
         {!d && q.error && <div className="empty">{q.error}<br /><button className="btn" onClick={q.reload}>다시 시도</button></div>}
         {d && (

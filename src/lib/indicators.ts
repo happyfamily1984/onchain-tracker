@@ -54,8 +54,19 @@ export const TONE_COLOR: Record<Tone, string> = {
 }
 
 // ───── 데이터 ─────
-type Series = Map<number, number> // dayIndex → value
+export type Series = Map<number, number> // dayIndex → value
 const day = (sec: number) => Math.floor(sec / 86400)
+
+// 같은 데이터를 분석 탭·상승 가능성이 함께 쓰도록 30분간 공유
+const shared = new Map<string, { t: number; p: Promise<unknown> }>()
+function once<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const hit = shared.get(key)
+  if (hit && Date.now() - hit.t < 30 * 60_000) return hit.p as Promise<T>
+  const p = fn()
+  shared.set(key, { t: Date.now(), p })
+  p.catch(() => shared.delete(key))
+  return p
+}
 
 async function getJSON<T>(url: string): Promise<T> {
   const ctrl = new AbortController()
@@ -67,22 +78,26 @@ async function getJSON<T>(url: string): Promise<T> {
   } finally { clearTimeout(t) }
 }
 
-async function bci(metric: string): Promise<Series> {
-  const r = await getJSON<{ values: { x: number; y: number }[] }>(`https://api.blockchain.info/charts/${metric}?timespan=5years&format=json&cors=true&sampled=true`)
-  const m: Series = new Map()
-  for (const p of r.values) if (isFinite(p.y)) m.set(day(p.x), p.y)
-  return m
+export function bci(metric: string): Promise<Series> {
+  return once('bci:' + metric, async () => {
+    const r = await getJSON<{ values: { x: number; y: number }[] }>(`https://api.blockchain.info/charts/${metric}?timespan=5years&format=json&cors=true&sampled=true`)
+    const m: Series = new Map()
+    for (const p of r.values) if (isFinite(p.y)) m.set(day(p.x), p.y)
+    return m
+  })
 }
 
-async function stables(): Promise<Series> {
-  const r = await getJSON<{ date: string; totalCirculatingUSD: { peggedUSD: number } }[]>('https://stablecoins.llama.fi/stablecoincharts/all')
-  const m: Series = new Map()
-  for (const p of r) m.set(day(Number(p.date)), p.totalCirculatingUSD?.peggedUSD ?? NaN)
-  return m
+export function stables(): Promise<Series> {
+  return once('stables', async () => {
+    const r = await getJSON<{ date: string; totalCirculatingUSD: { peggedUSD: number } }[]>('https://stablecoins.llama.fi/stablecoincharts/all')
+    const m: Series = new Map()
+    for (const p of r) m.set(day(Number(p.date)), p.totalCirculatingUSD?.peggedUSD ?? NaN)
+    return m
+  })
 }
 
 /** 빈 날을 이전 값으로 채운 연속 일별 배열 */
-function dense(s: Series): { start: number; v: number[] } {
+export function dense(s: Series): { start: number; v: number[] } {
   const keys = [...s.keys()].sort((a, b) => a - b)
   const start = keys[0], end = keys[keys.length - 1]
   const v: number[] = []
@@ -91,7 +106,7 @@ function dense(s: Series): { start: number; v: number[] } {
   return { start, v }
 }
 
-function sma(v: number[], n: number): number[] {
+export function sma(v: number[], n: number): number[] {
   const out: number[] = new Array(v.length).fill(NaN)
   let sum = 0
   for (let i = 0; i < v.length; i++) {
