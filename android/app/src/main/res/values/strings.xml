@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">온체인 트래커</string>
+    <string name="title_activity_main">온체인 트래커</string>
+    <string name="package_name">com.happyfamily.onchaintracker</string>
+    <string name="custom_url_scheme">com.happyfamily.onchaintracker</string>
+</resources>
