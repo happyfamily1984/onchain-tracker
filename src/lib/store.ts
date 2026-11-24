@@ -4,6 +4,13 @@ export interface Settings {
   currency: 'USD' | 'KRW'
   refreshSec: number
   krwRate: number | null
+  /** 고래 → 거래소 입금 알림 */
+  alertBtc: boolean
+  alertEth: boolean
+  alertMinBtc: number
+  alertMinEth: number
+  /** 관심 주소가 거래소로 보낼 때 알림 */
+  alertWatch: boolean
 }
 
 export interface WatchItem {
@@ -21,7 +28,7 @@ interface State {
 
 const KEY = 'onchain-tracker:v1'
 const defaults: State = {
-  settings: { currency: 'KRW', refreshSec: 60, krwRate: null },
+  settings: { currency: 'KRW', refreshSec: 60, krwRate: null, alertBtc: true, alertEth: false, alertMinBtc: 100, alertMinEth: 500, alertWatch: true },
   watch: [],
 }
 
@@ -48,6 +55,7 @@ function set(next: State) {
 const subscribe = (l: () => void) => { listeners.add(l); return () => listeners.delete(l) }
 
 export const getSettings = () => state.settings
+export const getWatch = () => state.watch
 export const useSettings = () => useSyncExternalStore(subscribe, () => state.settings)
 export const useWatch = () => useSyncExternalStore(subscribe, () => state.watch)
 

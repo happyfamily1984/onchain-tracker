@@ -342,6 +342,8 @@ export interface AddrTx {
   fee: number
   confirmed: boolean
   note?: string
+  /** 출금이면 받는 주소들, 입금이면 보낸 주소들 */
+  counterparties: string[]
 }
 
 export interface AddrToken { symbol: string; name: string; balance: number; usd: number | null }
@@ -379,7 +381,11 @@ export async function fetchAddress(chain: 'bitcoin' | 'ethereum', address: strin
       txs: txs.slice(0, 25).map((t) => {
         const out = t.vout.filter((o: any) => o.scriptpubkey_address === address).reduce((s: number, o: any) => s + o.value, 0)
         const inp = t.vin.filter((i: any) => i.prevout?.scriptpubkey_address === address).reduce((s: number, i: any) => s + i.prevout.value, 0)
-        return { hash: t.txid, time: t.status.block_time ?? null, delta: (out - inp) / 1e8, fee: t.fee / 1e8, confirmed: t.status.confirmed }
+        const delta = (out - inp) / 1e8
+        const counterparties: string[] = delta < 0
+          ? t.vout.filter((o: any) => o.scriptpubkey_address && o.scriptpubkey_address !== address).sort((a: any, b: any) => b.value - a.value).map((o: any) => o.scriptpubkey_address)
+          : [...new Set<string>(t.vin.map((i: any) => i.prevout?.scriptpubkey_address).filter((a: string) => a && a !== address))]
+        return { hash: t.txid, time: t.status.block_time ?? null, delta, fee: t.fee / 1e8, confirmed: t.status.confirmed, counterparties: counterparties.slice(0, 5) }
       }),
     }
   }
@@ -409,6 +415,7 @@ export async function fetchAddress(chain: 'bitcoin' | 'ethereum', address: strin
         fee: Number(t.fee?.value ?? 0) / 1e18,
         confirmed: t.status === 'ok' || t.result === 'success',
         note: t.method ?? undefined,
+        counterparties: [outgoing ? t.to?.hash : t.from?.hash].filter(Boolean),
       }
     }),
     tokens: [],

@@ -243,3 +243,27 @@ main { padding-bottom: calc(76px + var(--sab)); }
 .addr-chip.mine { font-family: inherit; font-weight: 650; color: var(--accent); background: rgba(110, 168, 255, .12); }
 .link { text-decoration: none; }
 .whale-foot .link { margin-left: auto; }
+
+/* 알림 */
+.tab-ico { position: relative; display: inline-flex; }
+.tab-badge { position: absolute; top: -5px; right: -12px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #ff5c6c; color: #fff; font-size: 10.5px; font-weight: 800; display: grid; place-items: center; }
+.inbox { margin-top: 6px; margin-bottom: 14px; }
+.inbox.has-new { border-color: rgba(255, 92, 108, .55); background: linear-gradient(160deg, rgba(255, 92, 108, .08), var(--card)); }
+.new-dot { margin-left: 8px; font-size: 11.5px; font-weight: 750; color: #fff; background: #ff5c6c; padding: 2px 7px; border-radius: 999px; }
+.inbox-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.alert-row { padding: 10px 12px; border-radius: 12px; background: var(--card2); }
+.alert-row.unread { box-shadow: inset 3px 0 0 #ff5c6c; }
+.alert-main > div:first-child { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.alert-amt { font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.b-dep { color: #ff5c6c; border-color: rgba(255, 92, 108, .4) !important; }
+.b-wd { color: #22c77a; border-color: rgba(34, 199, 122, .4) !important; }
+.tx .badge { display: inline-block; margin-bottom: 4px; }
+.tx.hot, .whale-row.hot { border-color: rgba(255, 92, 108, .5); }
+.full-w { width: 100%; margin-top: 6px; }
+.toggle-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 10px 0; }
+.toggle-row + .kv, .kv + .toggle-row { margin-top: 2px; }
+.toggle-row b { font-weight: 600; }
+.switch { flex: none; width: 46px; height: 28px; border-radius: 14px; background: var(--line); position: relative; transition: background .2s; }
+.switch > span { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .2s; }
+.switch.on { background: var(--accent); }
+.switch.on > span { transform: translateX(18px); }

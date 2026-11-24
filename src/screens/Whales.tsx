@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { explorerUrl, useFetch } from '../lib/api'
 import { ago, compact, money, num, shortHash } from '../lib/format'
-import { useWatch } from '../lib/store'
+import { useSettings, useWatch } from '../lib/store'
+import { clearAlerts, markAllRead, useAlerts, type Alert } from '../lib/alerts'
 import {
   fetchBtcWhales, fetchEthWhales, fetchStableFlows, interpret,
   type FlowSummary, type Party, type WhaleKind, type WhaleTx,
@@ -12,7 +13,7 @@ import { useFetch_overview } from './Home'
 type Coin = 'bitcoin' | 'ethereum'
 
 const KIND: Record<WhaleKind, { l: string; c: string }> = {
-  deposit: { l: '거래소 입금', c: '#ff5c6c' },
+  deposit: { l: '고래 → 거래소 입금', c: '#ff5c6c' },
   withdraw: { l: '거래소 출금', c: '#22c77a' },
   internal: { l: '거래소 간 이동', c: '#8a94a8' },
   consolidation: { l: 'UTXO 통합', c: '#c9a227' },
@@ -54,6 +55,8 @@ export default function Whales({ onAddress }: { onAddress: (chain: Coin, address
         right={<RefreshButton loading={q.loading || stable.loading} onClick={() => { q.reload(); stable.reload() }} />}
       />
       <div className="content">
+        <AlertInbox onAddress={onAddress} />
+
         <div className="seg wide">
           <button className={coin === 'bitcoin' ? 'on' : ''} onClick={() => { setCoin('bitcoin'); setFilter('all') }}>비트코인</button>
           <button className={coin === 'ethereum' ? 'on' : ''} onClick={() => { setCoin('ethereum'); setFilter('all') }}>이더리움</button>
@@ -199,9 +202,9 @@ function Parties({ list, onAddress }: { list: Party[]; onAddress: (a: string) =>
 function WhaleRow({ t, sym, price, onAddress }: { t: WhaleTx; sym: string; price: number | null; onAddress: (a: string) => void }) {
   const k = KIND[t.kind]
   return (
-    <div className="whale-row">
+    <div className={'whale-row' + (t.kind === 'deposit' ? ' hot' : '')}>
       <div className="whale-top">
-        <span className="badge" style={{ color: k.c, borderColor: k.c + '55' }}>{k.l}{t.exchange && t.kind !== 'internal' ? ` · ${t.exchange}` : ''}</span>
+        <span className="badge" style={{ color: k.c, borderColor: k.c + '55' }}>{t.kind === 'deposit' ? '🚨 ' : ''}{k.l}{t.exchange && t.kind !== 'internal' ? ` · ${t.exchange}` : ''}</span>
         <span className="dim small">{t.time ? ago(t.time) : ''} · #{num(t.block, 0)}</span>
       </div>
       <div className="whale-amt">
@@ -216,6 +219,48 @@ function WhaleRow({ t, sym, price, onAddress }: { t: WhaleTx; sym: string; price
       <div className="whale-foot small">
         {t.chain === 'bitcoin' && <span className="dim">입력 {t.inputs} · 출력 {t.outputs}</span>}
         <button className="dim link" onClick={() => openExternal(explorerUrl(t.chain, 'tx', t.hash))}>{shortHash(t.hash, 6)} ↗</button>
+      </div>
+    </div>
+  )
+}
+
+function AlertInbox({ onAddress }: { onAddress: (chain: Coin, address: string) => void }) {
+  const alerts = useAlerts()
+  const st = useSettings()
+  const [all, setAll] = useState(false)
+  const unread = alerts.filter((a) => !a.read).length
+  const on = st.alertBtc || st.alertEth || st.alertWatch
+  const list = all ? alerts.slice(0, 50) : alerts.slice(0, 4)
+  return (
+    <div className={'card inbox' + (unread ? ' has-new' : '')}>
+      <div className="kv">
+        <span><b>🚨 거래소 입금 감지</b>{unread > 0 && <span className="new-dot">새 {unread}</span>}</span>
+        {unread > 0 ? <button className="text-btn" onClick={markAllRead}>모두 확인</button> : alerts.length > 0 && <button className="text-btn dim" onClick={clearAlerts}>비우기</button>}
+      </div>
+      {!on && <div className="dim small">설정에서 고래 입금 알림을 켜면 고래 지갑이 거래소로 옮길 때 알려드립니다.</div>}
+      {on && alerts.length === 0 && <div className="dim small">아직 감지된 입금이 없습니다. 고래 지갑 → 거래소 입금이 생기면 여기와 알림으로 알려드립니다.</div>}
+      <div className="inbox-list">
+        {list.map((a) => <AlertRow key={a.id} a={a} onAddress={onAddress} />)}
+      </div>
+      {alerts.length > 4 && <button className="text-btn full-w" onClick={() => setAll(!all)}>{all ? '접기' : `전체 ${alerts.length}건 보기`}</button>}
+    </div>
+  )
+}
+
+function AlertRow({ a, onAddress }: { a: Alert; onAddress: (chain: Coin, address: string) => void }) {
+  const sym = a.chain === 'bitcoin' ? 'BTC' : 'ETH'
+  return (
+    <div className={'alert-row' + (a.read ? '' : ' unread')}>
+      <div className="alert-main">
+        <div>
+          <span className="badge b-dep">{a.source === 'watch' ? '관심 주소' : '고래'} → {a.exchange}</span>
+          <b className="alert-amt">{num(a.amount, a.amount >= 1000 ? 0 : 2)} {sym}</b>
+        </div>
+        <div className="small whale-route">
+          <button className="addr-chip" onClick={() => onAddress(a.chain, a.from)}>{a.fromLabel ?? shortHash(a.from, 5)}</button>
+          <span className="dim">{ago(a.time)}</span>
+          <button className="dim link" onClick={() => openExternal(explorerUrl(a.chain, 'tx', a.hash))}>거래 ↗</button>
+        </div>
       </div>
     </div>
   )

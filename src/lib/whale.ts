@@ -83,6 +83,27 @@ async function pool<T>(items: T[], n: number, fn: (x: T) => Promise<void>) {
   await Promise.all(Array.from({ length: Math.min(n, q.length) }, async () => { while (q.length) await fn(q.shift()!) }))
 }
 
+/** 주소들의 누적 거래 수를 조회해 '거래소 추정' 판별에 쓰도록 캐시 */
+export async function probeActivity(chain: 'bitcoin' | 'ethereum', addrs: string[]) {
+  const need = [...new Set(addrs.map((a) => a.toLowerCase()))].filter((a) => !activity.has(a) && !EXCHANGE_LABELS[a]).slice(0, 20)
+  if (!need.length) return
+  if (chain === 'bitcoin') {
+    const orig = new Map(addrs.map((a) => [a.toLowerCase(), a]))
+    await pool(need, 4, async (a) => {
+      try {
+        const r = await getJSON<any>(`${MS}/address/${orig.get(a)}`, undefined, 12000)
+        activity.set(a, r.chain_stats.tx_count + r.mempool_stats.tx_count)
+      } catch { /* 건너뜀 */ }
+    })
+  } else {
+    try {
+      const res = await rpcBatch(need.map((a) => ({ method: 'eth_getTransactionCount', params: [a, 'latest'] })))
+      res.forEach((r, i) => activity.set(need[i], parseInt(r, 16)))
+    } catch { /* 건너뜀 */ }
+  }
+  saveActivity()
+}
+
 const ETH_EXCHANGES = Object.keys(EXCHANGE_LABELS).filter((a) => a.startsWith('0x'))
 
 export function labelOf(address: string, userLabels: Record<string, string>): Party {

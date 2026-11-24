@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { App as CapApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
 import { refreshKrwRate } from './lib/api'
+import { checkAlerts, ensureNotifyPermission, useAlerts } from './lib/alerts'
 import { runTopBackHandler } from './lib/back'
 import type { ChainId } from './lib/chains'
 import { getSettings } from './lib/store'
@@ -24,6 +25,18 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('home')
   const [stack, setStack] = useState<Route[]>([])
   const [exitAsk, setExitAsk] = useState(false)
+  const unread = useAlerts().filter((a) => !a.read).length
+
+  // 고래 → 거래소 입금 감시 (앱 실행 중 주기적으로)
+  useEffect(() => {
+    const s = getSettings()
+    if (s.alertBtc || s.alertEth || s.alertWatch) ensureNotifyPermission()
+    const first = setTimeout(() => checkAlerts(), 4000)
+    const id = setInterval(() => checkAlerts(), Math.max(60, getSettings().refreshSec) * 1000)
+    let sub: Promise<{ remove: () => void }> | null = null
+    if (Capacitor.isNativePlatform()) sub = CapApp.addListener('appStateChange', ({ isActive }) => { if (isActive) checkAlerts() })
+    return () => { clearTimeout(first); clearInterval(id); sub?.then((x) => x.remove()) }
+  }, [])
 
   const push = (r: Route) => { setStack((s) => [...s, r]); window.scrollTo(0, 0) }
   const pop = () => setStack((s) => s.slice(0, -1))
@@ -81,7 +94,10 @@ export default function App() {
             ['settings', '설정', 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.3 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4z'],
           ] as const).map(([t, l, d]) => (
             <button key={t} className={tab === t ? 'on' : ''} onClick={() => goTab(t)}>
-              <svg viewBox="0 0 24 24" width="22" height="22"><path d={d} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>
+              <span className="tab-ico">
+                <svg viewBox="0 0 24 24" width="22" height="22"><path d={d} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>
+                {t === 'whale' && unread > 0 && <span className="tab-badge">{unread > 99 ? '99+' : unread}</span>}
+              </span>
               <span>{l}</span>
             </button>
           ))}

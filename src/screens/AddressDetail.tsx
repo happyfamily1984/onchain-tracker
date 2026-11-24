@@ -4,6 +4,8 @@ import { useBackHandler } from '../lib/back'
 import { chainById } from '../lib/chains'
 import { ago, money, num, shortHash } from '../lib/format'
 import { addWatch, renameWatch, useWatch } from '../lib/store'
+import { labelOf, probeActivity } from '../lib/whale'
+import { useEffect } from 'react'
 import { CoinIcon, Header, RefreshButton, Section, Skeleton, Stat, Updated, openExternal } from '../components/ui'
 import { useFetch_overview } from './Home'
 
@@ -21,6 +23,12 @@ export default function AddressDetail({ chain, address, onBack }: { chain: 'bitc
   const [draft, setDraft] = useState('')
   useBackHandler(editing, () => setEditing(false))
   const [copied, setCopied] = useState(false)
+  // 거래 상대가 거래소인지 판별 (누적 거래 수 조회 후 다시 그리기)
+  const [, setProbed] = useState(0)
+  useEffect(() => {
+    if (!d) return
+    probeActivity(chain, d.txs.flatMap((t) => t.counterparties.slice(0, 2))).then(() => setProbed((x) => x + 1))
+  }, [d, chain])
 
   const title = item?.label || d?.tag || shortHash(address, 5)
 
@@ -91,18 +99,22 @@ export default function AddressDetail({ chain, address, onBack }: { chain: 'bitc
             <Section title="최근 거래">
               {d.txs.length === 0 && <div className="empty small">거래 내역이 없습니다</div>}
               <div className="list">
-                {d.txs.map((t) => (
-                  <button key={t.hash} className="tx" onClick={() => openExternal(explorerUrl(chain, 'tx', t.hash))}>
+                {d.txs.map((t) => {
+                  const ex = t.counterparties.map((c) => labelOf(c, {})).find((p) => p.exchange)
+                  return (
+                  <button key={t.hash} className={'tx' + (ex && t.delta < 0 ? ' hot' : '')} onClick={() => openExternal(explorerUrl(chain, 'tx', t.hash))}>
                     <div className="tx-main">
+                      {ex && <span className={'badge ' + (t.delta < 0 ? 'b-dep' : 'b-wd')}>{t.delta < 0 ? `→ ${ex.label} 입금` : `${ex.label}에서 출금`}</span>}
                       <div className="mono">{shortHash(t.hash, 8)}</div>
                       <div className="dim small">{t.time ? ago(t.time) : '대기 중'}{t.note ? ` · ${t.note}` : ''}{!t.confirmed && t.time ? ' · 실패/대기' : ''}</div>
                     </div>
                     <div className="tx-right">
-                      <div className={t.delta > 0 ? 'up' : t.delta < 0 ? 'down' : 'dim'}>{t.delta > 0 ? '+' : ''}{num(t.delta, 6)} {info.symbol}</div>
+                      <div className={t.delta > 0 ? 'up' : t.delta < 0 ? 'down' : 'dim'}>{Math.abs(t.delta) < 5e-7 ? '0' : `${t.delta > 0 ? '+' : ''}${num(t.delta, 6)}`} {info.symbol}</div>
                       <div className="dim small">{price && t.delta ? money(Math.abs(t.delta) * price) : ''}</div>
                     </div>
                   </button>
-                ))}
+                  )
+                })}
               </div>
             </Section>
           </>
