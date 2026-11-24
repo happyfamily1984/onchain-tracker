@@ -4,9 +4,10 @@ import { ago, compact, money, num, shortHash } from '../lib/format'
 import { useSettings, useWatch } from '../lib/store'
 import { clearAlerts, markAllRead, useAlerts, type Alert } from '../lib/alerts'
 import {
-  fetchBtcWhales, fetchEthWhales, fetchStableFlows, interpret,
-  type FlowSummary, type Party, type WhaleKind, type WhaleTx,
+  AGE_BANDS, LTH_DAYS, fetchBtcWhales, fetchEthWhales, fetchStableFlows, interpret, interpretAge,
+  type AgeSummary, type CoinAge, type FlowSummary, type Party, type WhaleKind, type WhaleTx,
 } from '../lib/whale'
+import { bcTime } from '../lib/api'
 import { Header, RefreshButton, Section, Segmented, Skeleton, Updated, openExternal } from '../components/ui'
 import { useFetch_overview } from './Home'
 
@@ -40,7 +41,7 @@ export default function Whales({ onAddress }: { onAddress: (chain: Coin, address
 
   const q = useFetch(
     `whale:${coin}:${m}:${Object.keys(userLabels).length}`,
-    () => (coin === 'bitcoin' ? fetchBtcWhales(m, userLabels) : fetchEthWhales(m, userLabels)),
+    (): Promise<{ txs: WhaleTx[]; summary: FlowSummary; ages?: AgeSummary }> => (coin === 'bitcoin' ? fetchBtcWhales(m, userLabels) : fetchEthWhales(m, userLabels)),
     { maxAgeMs: 30_000 },
   )
   const stable = useFetch(coin === 'ethereum' ? 'stable-flow' : null, () => fetchStableFlows(), { maxAgeMs: 120_000 })
@@ -73,6 +74,13 @@ export default function Whales({ onAddress }: { onAddress: (chain: Coin, address
         {!q.data && !q.error && <Skeleton h={190} />}
         {!q.data && q.error && <div className="empty">{q.error}<br /><button className="btn" onClick={q.reload}>다시 시도</button></div>}
         {q.data && <FlowCard s={q.data.summary} sym={sym} price={price} coin={coin} />}
+
+        {coin === 'bitcoin' && q.data?.ages && (
+          <Section title="장기보유자 vs 단기보유자 물량" right={<span className="dim small">LTH ≥ {LTH_DAYS}일</span>}>
+            <AgeCard a={q.data.ages} />
+            <NetworkAge raw={ov.data?.find((c) => c.id === 'bitcoin')?.raw} />
+          </Section>
+        )}
 
         {coin === 'ethereum' && (
           <Section title="스테이블코인 거래소 흐름" right={<span className="dim small">USDT·USDC</span>}>
@@ -211,6 +219,7 @@ function WhaleRow({ t, sym, price, onAddress }: { t: WhaleTx; sym: string; price
         <b>{num(t.amount, t.amount >= 1000 ? 0 : 2)} {sym}</b>
         <span className="dim">{price ? money(t.amount * price, { compact: true }) : ''}</span>
       </div>
+      {t.age && t.age.lth + t.age.sth > 0 && <AgeChip a={t.age} />}
       <div className="whale-route small">
         <Parties list={t.from} onAddress={onAddress} />
         <span className="dim">→</span>
@@ -258,10 +267,88 @@ function AlertRow({ a, onAddress }: { a: Alert; onAddress: (chain: Coin, address
         </div>
         <div className="small whale-route">
           <button className="addr-chip" onClick={() => onAddress(a.chain, a.from)}>{a.fromLabel ?? shortHash(a.from, 5)}</button>
+          {a.lthPct != null && <span style={{ color: a.lthPct >= 50 ? LTH_C : STH_C, fontWeight: 650 }}>{a.lthPct >= 50 ? `LTH ${a.lthPct}%` : `STH ${100 - a.lthPct}%`}</span>}
           <span className="dim">{ago(a.time)}</span>
           <button className="dim link" onClick={() => openExternal(explorerUrl(a.chain, 'tx', a.hash))}>거래 ↗</button>
         </div>
       </div>
+    </div>
+  )
+}
+
+const fmtDays = (d: number) => (d >= 365 ? `${(d / 365).toFixed(1)}년` : d >= 30 ? `${Math.round(d / 30)}개월` : d >= 1 ? `${Math.round(d)}일` : `${Math.max(1, Math.round(d * 24))}시간`)
+const LTH_C = '#b07cff'
+const STH_C = '#3fc1e8'
+
+function AgeChip({ a }: { a: CoinAge }) {
+  const known = a.lth + a.sth
+  const lthPct = Math.round((a.lth / known) * 100)
+  return (
+    <div className="age-chip small">
+      <div className="age-mini"><div style={{ flex: a.lth, background: LTH_C }} /><div style={{ flex: a.sth, background: STH_C }} /></div>
+      <span style={{ color: lthPct >= 50 ? LTH_C : STH_C, fontWeight: 650 }}>{lthPct >= 50 ? `장기보유 물량 ${lthPct}%` : `단기보유 물량 ${100 - lthPct}%`}</span>
+      <span className="dim">평균 {fmtDays(a.avgDays)} 묵은 코인</span>
+    </div>
+  )
+}
+
+function AgeSplit({ a, title }: { a: CoinAge; title: string }) {
+  const tot = a.lth + a.sth
+  return (
+    <div className="age-split">
+      <div className="kv small"><span className="dim">{title}</span><span className="dim">{tot ? `평균 ${fmtDays(a.avgDays)}` : ''}</span></div>
+      {tot > 0 ? (
+        <>
+          <div className="flow-bar"><div style={{ flex: a.lth, background: LTH_C }} /><div style={{ flex: a.sth, background: STH_C }} /></div>
+          <div className="flow-legend">
+            <div><span className="sw" style={{ background: LTH_C }} />장기보유자(LTH)<b>{num(a.lth, 1)} BTC</b><small>{Math.round((a.lth / tot) * 100)}%</small></div>
+            <div><span className="sw" style={{ background: STH_C }} />단기보유자(STH)<b>{num(a.sth, 1)} BTC</b><small>{Math.round((a.sth / tot) * 100)}%</small></div>
+          </div>
+        </>
+      ) : <div className="dim small" style={{ padding: '6px 0' }}>해당 물량 없음</div>}
+    </div>
+  )
+}
+
+function AgeCard({ a }: { a: AgeSummary }) {
+  const it = interpretAge(a.all, a.toExchange)
+  const max = Math.max(...a.all.bands, 1e-9)
+  return (
+    <div className="card">
+      <AgeSplit a={a.toExchange} title="🏦 거래소로 들어간 물량" />
+      <div className="divider" />
+      <AgeSplit a={a.all} title="🐋 움직인 고래 물량 전체" />
+      <div className={'signal ' + it.tone}>{it.tone === 'bear' ? '🔴' : it.tone === 'bull' ? '🟢' : '⚪'} {it.text}</div>
+      <div className="bands">
+        <div className="dim small" style={{ marginBottom: 6 }}>보유 기간별 소비 물량</div>
+        {AGE_BANDS.map((b, i) => (
+          <div key={b.l} className="band-row small">
+            <span className="band-l">{b.l}</span>
+            <div className="band-track"><div style={{ width: `${(a.all.bands[i] / max) * 100}%`, background: b.max > LTH_DAYS ? LTH_C : STH_C }} /></div>
+            <span className="band-v">{a.all.bands[i] ? num(a.all.bands[i], a.all.bands[i] >= 100 ? 0 : 1) : '-'}</span>
+          </div>
+        ))}
+      </div>
+      {a.all.unknown > 0 && <div className="dim small" style={{ marginTop: 6 }}>※ 생성 시점을 확인하지 못한 입력 {num(a.all.unknown, 1)} BTC는 제외 (새로고침 시 추가 분석)</div>}
+      <div className="dim small" style={{ marginTop: 6 }}>각 고래 거래가 소비한 코인(UTXO)이 생성된 시점부터의 보유 기간으로 계산합니다. 거래소 간 이동·UTXO 통합은 제외합니다.</div>
+    </div>
+  )
+}
+
+/** 네트워크 전체: 24시간 소비된 코인의 평균 나이 = CDD / 전송량 */
+function NetworkAge({ raw }: { raw?: Record<string, any> }) {
+  if (!raw?.cdd_24h || !raw?.volume_24h) return null
+  const vol = Number(raw.volume_24h) / 1e8
+  const avg = raw.cdd_24h / vol
+  const t = bcTime(raw.best_block_time)
+  return (
+    <div className="card">
+      <div className="kv"><span>네트워크 전체 · 24시간</span><span className="dim small">{isFinite(t) ? ago(t) : ''}</span></div>
+      <div className="grid" style={{ marginTop: 8 }}>
+        <div className="stat"><div className="stat-label">소멸된 코인일(CDD)</div><div className="stat-value">{compact(raw.cdd_24h, 1)}</div><div className="stat-sub">코인 수 × 보유 일수</div></div>
+        <div className="stat"><div className="stat-label">소비 코인 평균 나이</div><div className="stat-value" style={{ color: avg >= 30 ? LTH_C : undefined }}>{fmtDays(avg)}</div><div className="stat-sub">CDD ÷ 전송량({compact(vol, 0)} BTC)</div></div>
+      </div>
+      <div className="dim small" style={{ marginTop: 8 }}>평균 나이가 평소보다 크게 높아지면 오래 묵은 장기보유 코인이 대량으로 움직였다는 뜻입니다.</div>
     </div>
   )
 }

@@ -267,3 +267,15 @@ main { padding-bottom: calc(76px + var(--sab)); }
 .switch > span { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .2s; }
 .switch.on { background: var(--accent); }
 .switch.on > span { transform: translateX(18px); }
+
+/* LTH / STH */
+.age-chip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.age-mini { display: flex; width: 44px; height: 6px; border-radius: 3px; overflow: hidden; gap: 1px; background: var(--card2); }
+.age-split .flow-bar { margin: 8px 0 6px; }
+.divider { height: 1px; background: var(--line); margin: 12px 0; }
+.bands { margin-top: 14px; }
+.band-row { display: grid; grid-template-columns: 84px 1fr 52px; align-items: center; gap: 8px; padding: 2px 0; }
+.band-l { color: var(--dim); white-space: nowrap; }
+.band-track { height: 8px; background: var(--card2); border-radius: 4px; overflow: hidden; }
+.band-track > div { height: 100%; border-radius: 4px; min-width: 0; }
+.band-v { text-align: right; font-variant-numeric: tabular-nums; }

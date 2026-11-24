@@ -23,6 +23,8 @@ export interface Alert {
   time: number
   source: 'whale' | 'watch'
   read: boolean
+  /** 장기보유자 물량 비중(%) */
+  lthPct?: number
 }
 
 const KEY = 'alerts:v1'
@@ -71,7 +73,7 @@ async function notify(list: Alert[]) {
     const items = list.slice(0, 5).map((a) => ({
       id: ++nid,
       title: a.source === 'watch' ? `👀 관심 주소 → ${a.exchange} 입금` : `🐋 고래 → ${a.exchange} 입금`,
-      body: `${num(a.amount, a.amount >= 1000 ? 0 : 2)} ${SYM[a.chain]} · ${a.fromLabel ?? shortHash(a.from, 6)}에서 이동`,
+      body: `${num(a.amount, a.amount >= 1000 ? 0 : 2)} ${SYM[a.chain]} · ${a.fromLabel ?? shortHash(a.from, 6)}에서 이동${a.lthPct != null ? (a.lthPct >= 50 ? ` · 장기보유 물량 ${a.lthPct}%` : ` · 단기보유 물량 ${100 - a.lthPct}%`) : ''}`,
     }))
     if (list.length > 5) items.push({ id: ++nid, title: '🐋 거래소 입금 다수 감지', body: `외 ${list.length - 5}건 — 앱에서 확인하세요` })
     await LocalNotifications.schedule({ notifications: items })
@@ -98,7 +100,10 @@ export async function checkAlerts(): Promise<number> {
   try {
     const jobs: Promise<void>[] = []
     if (s.alertBtc) jobs.push(fetchBtcWhales(s.alertMinBtc, userLabels).then((r) => {
-      for (const t of r.txs) if (t.kind === 'deposit') add({ chain: 'bitcoin', hash: t.hash, amount: t.amount, exchange: t.exchange ?? '거래소', from: t.from[0]?.address ?? '', fromLabel: t.from[0]?.label ?? null, time: (t.time ?? 0) * 1000 || Date.now(), source: 'whale' })
+      for (const t of r.txs) if (t.kind === 'deposit') {
+        const known = t.age ? t.age.lth + t.age.sth : 0
+        add({ chain: 'bitcoin', hash: t.hash, amount: t.amount, exchange: t.exchange ?? '거래소', from: t.from[0]?.address ?? '', fromLabel: t.from[0]?.label ?? null, time: (t.time ?? 0) * 1000 || Date.now(), source: 'whale', lthPct: known ? Math.round((t.age!.lth / known) * 100) : undefined })
+      }
     }).catch(() => {}))
     if (s.alertEth) jobs.push(fetchEthWhales(s.alertMinEth, userLabels).then((r) => {
       for (const t of r.txs) if (t.kind === 'deposit') add({ chain: 'ethereum', hash: t.hash, amount: t.amount, exchange: t.exchange ?? '거래소', from: t.from[0]?.address ?? '', fromLabel: t.from[0]?.label ?? null, time: (t.time ?? 0) * 1000 || Date.now(), source: 'whale' })

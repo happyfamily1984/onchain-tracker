@@ -21,6 +21,38 @@ export interface WhaleTx {
   to: Party[]
   inputs: number
   outputs: number
+  /** BTC: 소비된 코인의 나이 분석 */
+  age?: CoinAge
+}
+
+/** 코인 나이 구간 (일) */
+export const AGE_BANDS = [
+  { max: 1, l: '1일 미만' },
+  { max: 7, l: '1일~1주' },
+  { max: 30, l: '1주~1개월' },
+  { max: 90, l: '1~3개월' },
+  { max: 155, l: '3개월~155일' },
+  { max: 365, l: '155일~1년' },
+  { max: 730, l: '1~2년' },
+  { max: 1825, l: '2~5년' },
+  { max: Infinity, l: '5년 이상' },
+]
+/** 장기보유자(LTH) 기준: 155일 이상 보유한 코인 */
+export const LTH_DAYS = 155
+
+export interface CoinAge {
+  /** 입력 금액 기준 (BTC) */
+  lth: number
+  sth: number
+  unknown: number
+  /** 금액 가중 평균 나이(일) */
+  avgDays: number
+  bands: number[]
+}
+
+export interface AgeSummary {
+  all: CoinAge
+  toExchange: CoinAge
 }
 
 export interface FlowSummary {
@@ -142,13 +174,73 @@ export function summarize(txs: WhaleTx[], blocks: number, minutes: number): Flow
   return { count: txs.length, total, inflow, outflow, blocks, minutes }
 }
 
+// ───── 코인 나이 (UTXO 생성 시점) ─────
+const emptyAge = (): CoinAge => ({ lth: 0, sth: 0, unknown: 0, avgDays: 0, bands: AGE_BANDS.map(() => 0) })
+const bandIndex = (days: number) => AGE_BANDS.findIndex((b) => days < b.max)
+
+/** 이전 거래의 블록 시간 캐시 (확정 거래는 변하지 않음) */
+const txTime = new Map<string, number>()
+try {
+  const raw = localStorage.getItem('whale:txtime')
+  if (raw) Object.entries(JSON.parse(raw) as Record<string, number>).forEach(([k, v]) => txTime.set(k, v))
+} catch { /* ignore */ }
+function saveTxTime() {
+  try { localStorage.setItem('whale:txtime', JSON.stringify(Object.fromEntries([...txTime.entries()].slice(-3000)))) } catch { /* ignore */ }
+}
+
+export function mergeAge(list: (CoinAge | undefined)[]): CoinAge {
+  const out = emptyAge()
+  let wsum = 0
+  for (const a of list) {
+    if (!a) continue
+    out.lth += a.lth; out.sth += a.sth; out.unknown += a.unknown
+    a.bands.forEach((v, i) => (out.bands[i] += v))
+    wsum += a.avgDays * (a.lth + a.sth)
+  }
+  out.avgDays = out.lth + out.sth ? wsum / (out.lth + out.sth) : 0
+  return out
+}
+
+/** 고래 거래 입력(UTXO)의 생성 시점을 조회해 코인 나이 계산 */
+async function analyzeAges(list: { tx: any; spendTime: number }[], budget = 90) {
+  // 금액이 큰 입력부터, 거래당 최대 8개
+  const need: string[] = []
+  for (const { tx } of list) {
+    const ins = [...tx.vin].filter((v: any) => !v.is_coinbase && v.prevout).sort((a: any, b: any) => b.prevout.value - a.prevout.value).slice(0, 8)
+    for (const v of ins) if (!txTime.has(v.txid) && !need.includes(v.txid)) need.push(v.txid)
+  }
+  await pool(need.slice(0, budget), 6, async (id) => {
+    try {
+      const st = await getJSON<any>(`${MS}/tx/${id}/status`, undefined, 12000)
+      if (st.confirmed && st.block_time) txTime.set(id, st.block_time)
+    } catch { /* 건너뜀 */ }
+  })
+  saveTxTime()
+  return list.map(({ tx, spendTime }) => {
+    const age = emptyAge()
+    let wsum = 0
+    for (const v of tx.vin) {
+      if (v.is_coinbase || !v.prevout) continue
+      const btc = v.prevout.value / 1e8
+      const created = txTime.get(v.txid)
+      if (created == null) { age.unknown += btc; continue }
+      const days = Math.max(0, (spendTime - created) / 86400)
+      if (days >= LTH_DAYS) age.lth += btc; else age.sth += btc
+      age.bands[bandIndex(days)] += btc
+      wsum += days * btc
+    }
+    age.avgDays = age.lth + age.sth ? wsum / (age.lth + age.sth) : 0
+    return age
+  })
+}
+
 // ─────────────── BTC ───────────────
 const MS = 'https://mempool.space/api'
 const btcBlockCache = new Map<string, { height: number; time: number; big: { txid: string; value: number }[] }>()
 const btcTxCache = new Map<string, any>()
 
 /** 최근 blocks개 블록에서 minBtc 이상 거래 */
-export async function fetchBtcWhales(minBtc: number, userLabels: Record<string, string>, blocks = 3): Promise<{ txs: WhaleTx[]; summary: FlowSummary }> {
+export async function fetchBtcWhales(minBtc: number, userLabels: Record<string, string>, blocks = 3): Promise<{ txs: WhaleTx[]; summary: FlowSummary; ages: AgeSummary }> {
   const recent = await getJSON<any[]>(`${MS}/v1/blocks`)
   const target = recent.slice(0, blocks)
   // 블록 요약은 캐시 — 새 블록만 받는다 (블록당 약 0.5MB)
@@ -188,6 +280,11 @@ export async function fetchBtcWhales(minBtc: number, userLabels: Record<string, 
   })
   saveActivity()
 
+  // 코인 나이(LTH/STH) 분석
+  const valid = details.filter(Boolean) as { meta: any; tx: any }[]
+  const ages = await analyzeAges(valid.map((d) => ({ tx: d.tx, spendTime: d.meta.time })))
+  const ageByTx = new Map(valid.map((d, i) => [d.tx.txid, ages[i]]))
+
   const txs: WhaleTx[] = []
   for (const d of details) {
     if (!d) continue
@@ -209,11 +306,20 @@ export async function fetchBtcWhales(minBtc: number, userLabels: Record<string, 
       kind: classify(fromEx, toEx, tx.vin.length, tx.vout.length),
       exchange: toEx ?? fromEx, from: fromParties, to: toParties,
       inputs: tx.vin.length, outputs: tx.vout.length,
+      age: ageByTx.get(tx.txid),
     })
   }
   txs.sort((a, b) => (b.block ?? 0) - (a.block ?? 0) || b.amount - a.amount)
   const span = target.length ? (target[0].timestamp - target[target.length - 1].timestamp) / 60 + 10 : 0
-  return { txs, summary: summarize(txs, target.length, Math.round(span)) }
+  return {
+    txs,
+    summary: summarize(txs, target.length, Math.round(span)),
+    ages: {
+      // 거래소 간 이동·UTXO 통합은 매도/이동 판단에서 제외
+      all: mergeAge(txs.filter((t) => t.kind !== 'internal' && t.kind !== 'consolidation').map((t) => t.age)),
+      toExchange: mergeAge(txs.filter((t) => t.kind === 'deposit').map((t) => t.age)),
+    },
+  }
 }
 
 // ─────────────── ETH ───────────────
@@ -344,4 +450,20 @@ export function interpret(inflow: number, outflow: number, kind: 'coin' | 'stabl
   return r > 0
     ? { tone: 'bull', text: '스테이블코인이 거래소로 유입되고 있습니다. 코인 매수 대기 자금이 늘고 있다는 신호로 해석되곤 합니다.' }
     : { tone: 'bear', text: '스테이블코인이 거래소에서 빠져나가고 있습니다. 매수 대기 자금이 줄어드는 흐름입니다.' }
+}
+
+/** LTH/STH 물량 해석 */
+export function interpretAge(all: CoinAge, toEx: CoinAge): { tone: 'bull' | 'bear' | 'neutral'; text: string } {
+  const exTot = toEx.lth + toEx.sth
+  const tot = all.lth + all.sth
+  if (exTot > 0) {
+    const r = toEx.lth / exTot
+    if (r >= 0.5) return { tone: 'bear', text: `거래소로 들어간 고래 물량의 ${Math.round(r * 100)}%가 155일 이상 묵은 장기보유자(LTH) 코인입니다. 장기보유자의 차익실현·분배는 고점 부근에서 자주 나타나는 신호입니다.` }
+    if (r >= 0.2) return { tone: 'neutral', text: `거래소 입금 물량 중 장기보유자(LTH) 비중이 ${Math.round(r * 100)}%입니다. 단기·장기 물량이 섞여 나오고 있습니다.` }
+    return { tone: 'neutral', text: `거래소 입금 물량 대부분이 단기보유자(STH) 코인입니다. 최근 매수자의 단기 차익실현·손절 물량으로, 장기 추세 영향은 상대적으로 작습니다.` }
+  }
+  if (tot === 0) return { tone: 'neutral', text: '분석할 고래 이동이 없습니다.' }
+  const r = all.lth / tot
+  if (r >= 0.5) return { tone: 'neutral', text: `움직인 고래 물량의 ${Math.round(r * 100)}%가 장기보유자 코인입니다. 거래소로 가지 않았다면 지갑 정리·보관 이동일 수 있습니다.` }
+  return { tone: 'neutral', text: '움직인 고래 물량은 주로 단기보유자(STH) 코인입니다. 장기보유자는 대체로 보유를 유지하고 있습니다.' }
 }
