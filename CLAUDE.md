@@ -4,5 +4,8 @@
   - 출시용: `android/app/build/outputs/bundle/release/app-release.aab` / 폰 테스트용: `.../apk/release/app-release.apk`
   - 업데이트할 때마다 `android/app/build.gradle` 의 versionCode 를 1씩 올리고, versionName 과 설정 화면 APP_VERSION 을 맞춘다.
   - 서명: `android/keystore.properties` + `android/upload-keystore.jks` (git 제외). 없으면 사용자에게 받는다. 새로 만들면 업데이트가 안 되니 절대 새로 만들지 않는다.
-- 스토어 자료: `store/` (아이콘·그래픽·스크린샷·등록 문구)
+- 출시 파일 위치 (사용자 인계사항): 저장소 루트 `play-release/`
+  - `app.aab`, `등록정보.md`, `privacy.html`, `store/icon-512.png`, `store/feature-1024x500.png`, `store/screenshots/01.png~06.png`
+  - "출시파일 만들어" 요청 때만 갱신·커밋·푸시. 평소 기능 수정은 테스트용 APK만 빌드한다.
+- 서명 키(.jks)·비밀번호 파일은 절대 git에 올리지 않고 채팅으로만 전달한다 (저장소 공개 상태).
 - 앱 문구는 누구나 이해할 수 있는 쉬운 말로 쓴다. 어려운 용어는 `<Term>` 으로 설명을 붙인다.
