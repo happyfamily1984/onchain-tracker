@@ -5,6 +5,7 @@ import { chainById } from '../lib/chains'
 import { ago, money, num, shortHash } from '../lib/format'
 import { addWatch, renameWatch, useWatch } from '../lib/store'
 import { labelOf, probeActivity } from '../lib/whale'
+import { Term } from '../components/Term'
 import { useEffect } from 'react'
 import { CoinIcon, Header, RefreshButton, Section, Skeleton, Stat, Updated, openExternal } from '../components/ui'
 import { useFetch_overview } from './Home'
@@ -71,14 +72,14 @@ export default function AddressDetail({ chain, address, onBack }: { chain: 'bitc
         {d && (
           <>
             <div className="grid">
-              <Stat label="거래 수" value={num(d.txCount, 0)} sub={d.pendingTx ? `대기 ${d.pendingTx}건` : undefined} />
-              {d.received != null && <Stat label="총 입금" value={`${num(d.received, 4)}`} sub={info.symbol} />}
-              {d.sent != null && <Stat label="총 출금" value={`${num(d.sent, 4)}`} sub={info.symbol} />}
-              {chain === 'ethereum' && <Stat label="유형" value={d.isContract ? '컨트랙트' : '일반 지갑'} sub={d.tag ?? undefined} />}
+              <Stat label="지금까지 거래 건수" value={num(d.txCount, 0) + '건'} sub={d.pendingTx ? `처리 대기 ${d.pendingTx}건` : undefined} />
+              {d.received != null && <Stat label="지금까지 받은 양" value={`${num(d.received, 4)}`} sub={info.symbol} />}
+              {d.sent != null && <Stat label="지금까지 보낸 양" value={`${num(d.sent, 4)}`} sub={info.symbol} />}
+              {chain === 'ethereum' && <Stat label="지갑 종류" value={d.isContract ? '프로그램 지갑' : '일반 지갑'} sub={d.isContract ? <Term k="contract">스마트 컨트랙트</Term> : d.tag ?? undefined} />}
             </div>
 
             {chain === 'ethereum' && (
-              <Section title="보유 토큰 (ERC-20)">
+              <Section title={<>가지고 있는 <Term k="erc20">토큰</Term></>}>
                 {!tk.data && !tk.error && <Skeleton h={60} />}
                 {tk.error && !tk.data && <div className="empty small">토큰 정보를 불러오지 못했습니다</div>}
                 {tk.data?.length === 0 && <div className="empty small">시세가 있는 보유 토큰이 없습니다</div>}
@@ -96,7 +97,7 @@ export default function AddressDetail({ chain, address, onBack }: { chain: 'bitc
               </Section>
             )}
 
-            <Section title="최근 거래">
+            <Section title="최근 거래 (+받음 / −보냄)">
               {d.txs.length === 0 && <div className="empty small">거래 내역이 없습니다</div>}
               <div className="list">
                 {d.txs.map((t) => {
@@ -104,7 +105,7 @@ export default function AddressDetail({ chain, address, onBack }: { chain: 'bitc
                   return (
                   <button key={t.hash} className={'tx' + (ex && t.delta < 0 ? ' hot' : '')} onClick={() => openExternal(explorerUrl(chain, 'tx', t.hash))}>
                     <div className="tx-main">
-                      {ex && <span className={'badge ' + (t.delta < 0 ? 'b-dep' : 'b-wd')}>{t.delta < 0 ? `→ ${ex.label} 입금` : `${ex.label}에서 출금`}</span>}
+                      {ex && <span className={'badge ' + (t.delta < 0 ? 'b-dep' : 'b-wd')}>{t.delta < 0 ? `📥 ${ex.label}(으)로 보냄` : `📤 ${ex.label}에서 받음`}</span>}
                       <div className="mono">{shortHash(t.hash, 8)}</div>
                       <div className="dim small">{t.time ? ago(t.time) : '대기 중'}{t.note ? ` · ${t.note}` : ''}{!t.confirmed && t.time ? ' · 실패/대기' : ''}</div>
                     </div>

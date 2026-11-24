@@ -15,12 +15,15 @@ import Insights from './screens/Insights'
 import AddressDetail from './screens/AddressDetail'
 import Settings from './screens/Settings'
 import Privacy from './screens/Privacy'
+import Glossary from './screens/Glossary'
+import { TermSheet } from './components/Term'
 
 type Tab = 'home' | 'insight' | 'whale' | 'watch' | 'settings'
 type Route =
   | { name: 'chain'; id: ChainId }
   | { name: 'address'; chain: 'bitcoin' | 'ethereum'; address: string }
   | { name: 'privacy' }
+  | { name: 'glossary' }
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('home')
@@ -77,15 +80,17 @@ export default function App() {
   if (top?.name === 'chain') screen = <ChainDetail key={top.id} id={top.id} onBack={pop} onAddress={(chain, address) => push({ name: 'address', chain, address })} />
   else if (top?.name === 'address') screen = <AddressDetail key={top.address} chain={top.chain} address={top.address} onBack={pop} />
   else if (top?.name === 'privacy') screen = <Privacy onBack={pop} />
+  else if (top?.name === 'glossary') screen = <Glossary onBack={pop} />
   else if (tab === 'home') screen = <Home onOpen={(id) => push({ name: 'chain', id })} onInsights={() => goTab('insight')} />
   else if (tab === 'insight') screen = <Insights />
   else if (tab === 'whale') screen = <Whales onAddress={(chain, address) => push({ name: 'address', chain, address })} />
   else if (tab === 'watch') screen = <Watchlist onOpen={(w) => push({ name: 'address', chain: w.chain, address: w.address })} />
-  else screen = <Settings onPrivacy={() => push({ name: 'privacy' })} />
+  else screen = <Settings onPrivacy={() => push({ name: 'privacy' })} onGlossary={() => push({ name: 'glossary' })} />
 
   return (
     <div className="app">
       <main>{screen}</main>
+      <TermSheet onGlossary={() => { if (top?.name !== 'glossary') push({ name: 'glossary' }) }} />
       {!top && (
         <nav className="tabbar">
           {([

@@ -4,6 +4,7 @@ import { CHAINS, type ChainId } from '../lib/chains'
 import { compact, money, num, pct } from '../lib/format'
 import { useIndicators } from './Insights'
 import { TONE_COLOR } from '../lib/indicators'
+import { Term } from '../components/Term'
 import { CoinIcon, Header, RefreshButton, Section, Segmented, Skeleton, Updated } from '../components/ui'
 
 type Sort = 'cap' | 'tx' | 'chg'
@@ -33,30 +34,31 @@ export default function Home({ onOpen, onInsights }: { onOpen: (id: ChainId) => 
         right={<RefreshButton loading={ov.loading || pulse.loading} onClick={() => { ov.reload(); pulse.reload() }} />}
       />
       <div className="content">
-        <div className="pulse">
+        <InsightSummary onClick={onInsights} />
+
+        <div className="dim small" style={{ margin: '16px 2px 8px' }}>💸 지금 송금하면 수수료는? (보통 속도 기준)</div>
+        <div className="pulse" style={{ marginTop: 0 }}>
           <button className="pulse-card" onClick={() => onOpen('bitcoin')}>
-            <div className="pulse-label"><span className="dot" style={{ background: '#f7931a' }} />BTC 수수료</div>
-            <div className="pulse-val">{pulse.data ? num(pulse.data.btcFee, 0) : '-'}<small> sat/vB</small></div>
-            <div className="pulse-sub">멤풀 {btc ? compact(btc.mempoolTx, 1) : '-'}건 대기</div>
+            <div className="pulse-label"><span className="dot" style={{ background: '#f7931a' }} />비트코인 보내기</div>
+            <div className="pulse-val">{pulse.data?.btcFee != null && btc?.price ? money((pulse.data.btcFee * 140 * btc.price) / 1e8) : '-'}</div>
+            <div className="pulse-sub">처리 대기 {btc ? compact(btc.mempoolTx, 1) : '-'}건 · {pulse.data ? num(pulse.data.btcFee, 0) : '-'} <Term k="satvb">sat/vB</Term></div>
           </button>
           <button className="pulse-card" onClick={() => onOpen('ethereum')}>
-            <div className="pulse-label"><span className="dot" style={{ background: '#8c8cff' }} />ETH 가스</div>
-            <div className="pulse-val">{pulse.data ? num(pulse.data.ethGas, 2) : '-'}<small> gwei</small></div>
-            <div className="pulse-sub">사용률 {pulse.data ? num(pulse.data.ethUtil, 0) : '-'}%</div>
+            <div className="pulse-label"><span className="dot" style={{ background: '#8c8cff' }} />이더리움 보내기</div>
+            <div className="pulse-val">{pulse.data?.ethGas != null && eth?.price ? money(pulse.data.ethGas * 21000 * 1e-9 * eth.price) : '-'}</div>
+            <div className="pulse-sub">붐빔 {pulse.data ? num(pulse.data.ethUtil, 0) : '-'}% · {pulse.data ? num(pulse.data.ethGas, 2) : '-'} <Term k="gwei">gwei</Term></div>
           </button>
         </div>
 
-        <InsightSummary onClick={onInsights} />
-
         <div className="summary">
-          <div><span>BTC 도미넌스</span><b>{btc ? num(btc.dominance, 1) + '%' : '-'}</b></div>
-          <div><span>ETH 도미넌스</span><b>{eth ? num(eth.dominance, 1) + '%' : '-'}</b></div>
-          <div><span>24h 온체인 거래</span><b>{totalTx ? compact(totalTx, 1) + '건' : '-'}</b></div>
+          <div><span><Term k="dominance">비트코인 비중</Term></span><b>{btc ? num(btc.dominance, 1) + '%' : '-'}</b></div>
+          <div><span><Term k="dominance">이더리움 비중</Term></span><b>{eth ? num(eth.dominance, 1) + '%' : '-'}</b></div>
+          <div><span>하루 거래 건수</span><b>{totalTx ? compact(totalTx, 1) + '건' : '-'}</b></div>
         </div>
 
         <Section
-          title="네트워크"
-          right={<Segmented value={sort} onChange={setSort} options={[{ v: 'cap', l: '시총' }, { v: 'tx', l: '거래 수' }, { v: 'chg', l: '변동' }]} />}
+          title="코인별 현황"
+          right={<Segmented value={sort} onChange={setSort} options={[{ v: 'cap', l: '몸값순' }, { v: 'tx', l: '거래 많은순' }, { v: 'chg', l: '오른순' }]} />}
         >
           {!ov.data && !ov.error && Array.from({ length: 6 }, (_, i) => <Skeleton key={i} h={76} />)}
           {!ov.data && ov.error && <div className="empty">{ov.error}<br /><button className="btn" onClick={ov.reload}>다시 시도</button></div>}
@@ -82,7 +84,7 @@ function ChainRow({ c, onClick }: { c: ChainSummary; onClick: () => void }) {
         </div>
         <div className="row-bottom">
           <span className="row-meta">
-            거래 {compact(c.tx24h, 1)} · 수수료 {money(c.avgFeeUsd)}
+            하루 거래 {compact(c.tx24h, 1)}건 · 평균 수수료 {money(c.avgFeeUsd)}
           </span>
           <span className={'chg ' + ((c.change24h ?? 0) >= 0 ? 'up' : 'down')}>{pct(c.change24h)}</span>
         </div>
@@ -108,18 +110,18 @@ function InsightSummary({ onClick }: { onClick: () => void }) {
   return (
     <button className="card insight-home" onClick={onClick}>
       <div className="row-top">
-        <span className="dim small">🌡️ 오늘의 온체인 요약</span>
-        <span className="dim small">분석 보기 ›</span>
+        <span className="dim small">🌡️ 오늘의 한 줄 요약 · 비트코인 지금 비싼가요?</span>
+        <span className="dim small">자세히 ›</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 6 }}>
-        <b style={{ fontSize: 28, color: c, letterSpacing: -1 }}>{Math.round(t.score)}</b>
-        <b style={{ color: c }}>{t.label}</b>
-        <span className="dim small">시장 온도</span>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
+        <b style={{ fontSize: 28, color: c, letterSpacing: -1 }}>{Math.round(t.score)}점</b>
+        <b style={{ color: c, fontSize: 16 }}>{t.say}</b>
       </div>
+      <div className="dim small" style={{ marginTop: 2 }}>0점 = 아주 쌈 · 100점 = 아주 비쌈</div>
       {top.map((i) => (
         <div key={i.id} className="ins-line">
           <span className="ins-dot" style={{ background: TONE_COLOR[i.zone.tone] }} />
-          <span><b>{i.title}</b> {i.zone.label} — <span className="dim">{i.zone.text.split('.')[0]}.</span></span>
+          <span><b>{i.title}</b> <span style={{ color: TONE_COLOR[i.zone.tone] }}>{i.zone.say}</span></span>
         </div>
       ))}
     </button>

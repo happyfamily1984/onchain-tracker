@@ -14,9 +14,9 @@ function Toggle({ label, sub, on, onChange }: { label: string; sub?: string; on:
   )
 }
 
-export const APP_VERSION = '1.0.0'
+export const APP_VERSION = '1.1.0'
 
-export default function Settings({ onPrivacy }: { onPrivacy: () => void }) {
+export default function Settings({ onPrivacy, onGlossary }: { onPrivacy: () => void; onGlossary: () => void }) {
   const s = useSettings()
   const [clearOpen, setClearOpen] = useState(false)
   const [done, setDone] = useState(false)
@@ -25,6 +25,11 @@ export default function Settings({ onPrivacy }: { onPrivacy: () => void }) {
     <div className="screen">
       <Header title="설정" />
       <div className="content">
+        <button className="card link-row" style={{ marginTop: 6, padding: '14px' }} onClick={onGlossary}>
+          <span><b>📖 쉬운 용어 사전</b><span className="dim small"><br />고래, 반감기, 멤풀… 어려운 말을 쉽게 풀어 드려요</span></span>
+          <span className="dim">›</span>
+        </button>
+
         <Section title="표시">
           <div className="card">
             <div className="kv"><span>표시 통화</span>
@@ -37,23 +42,23 @@ export default function Settings({ onPrivacy }: { onPrivacy: () => void }) {
           </div>
         </Section>
 
-        <Section title="고래 → 거래소 입금 알림">
+        <Section title="🚨 큰손이 거래소로 보내면 알림">
           <div className="card">
-            <Toggle label="비트코인 고래 입금" sub="최근 블록에서 고래 지갑 → 거래소 입금 감지" on={s.alertBtc} onChange={(v) => { updateSettings({ alertBtc: v }); if (v) { ensureNotifyPermission(); checkAlerts() } }} />
+            <Toggle label="비트코인 큰손" sub="큰손이 거래소로 비트코인을 보내면(팔 준비 신호) 알려줘요" on={s.alertBtc} onChange={(v) => { updateSettings({ alertBtc: v }); if (v) { ensureNotifyPermission(); checkAlerts() } }} />
             {s.alertBtc && (
-              <div className="kv"><span className="dim small">기준</span>
-                <Segmented value={String(s.alertMinBtc)} onChange={(v) => updateSettings({ alertMinBtc: Number(v) })} options={[{ v: '100', l: '100 BTC+' }, { v: '500', l: '500+' }, { v: '1000', l: '1,000+' }]} />
+              <div className="kv"><span className="dim small">이만큼 이상 보내면</span>
+                <Segmented value={String(s.alertMinBtc)} onChange={(v) => updateSettings({ alertMinBtc: Number(v) })} options={[{ v: '100', l: '100개+' }, { v: '500', l: '500개+' }, { v: '1000', l: '1,000개+' }]} />
               </div>
             )}
-            <Toggle label="이더리움 고래 입금" sub="새 블록을 계속 스캔 (데이터 사용량 많음)" on={s.alertEth} onChange={(v) => { updateSettings({ alertEth: v }); if (v) { ensureNotifyPermission(); checkAlerts() } }} />
+            <Toggle label="이더리움 큰손" sub="새 거래를 계속 확인해요 (인터넷 데이터를 많이 써요)" on={s.alertEth} onChange={(v) => { updateSettings({ alertEth: v }); if (v) { ensureNotifyPermission(); checkAlerts() } }} />
             {s.alertEth && (
-              <div className="kv"><span className="dim small">기준</span>
-                <Segmented value={String(s.alertMinEth)} onChange={(v) => updateSettings({ alertMinEth: Number(v) })} options={[{ v: '100', l: '100 ETH+' }, { v: '500', l: '500+' }, { v: '1000', l: '1,000+' }]} />
+              <div className="kv"><span className="dim small">이만큼 이상 보내면</span>
+                <Segmented value={String(s.alertMinEth)} onChange={(v) => updateSettings({ alertMinEth: Number(v) })} options={[{ v: '100', l: '100개+' }, { v: '500', l: '500개+' }, { v: '1000', l: '1,000개+' }]} />
               </div>
             )}
-            <Toggle label="관심 주소 → 거래소 입금" sub="등록한 지갑이 거래소로 보내면 알림" on={s.alertWatch} onChange={(v) => { updateSettings({ alertWatch: v }); if (v) { ensureNotifyPermission(); checkAlerts() } }} />
+            <Toggle label="내 관심 주소" sub="관심 주소에 등록한 지갑이 거래소로 보내면 알려줘요" on={s.alertWatch} onChange={(v) => { updateSettings({ alertWatch: v }); if (v) { ensureNotifyPermission(); checkAlerts() } }} />
           </div>
-          <p className="dim small pad">앱이 실행 중일 때 새로고침 간격마다 검사하고, 앱을 다시 열면 즉시 검사합니다. 앱을 완전히 종료한 동안에는 감시하지 않습니다.</p>
+          <p className="dim small pad">앱이 켜져 있을 때 주기적으로 확인하고, 앱을 다시 열면 바로 확인해요. 앱을 완전히 끄면 확인하지 않아요.</p>
         </Section>
 
         <Section title="데이터 출처">

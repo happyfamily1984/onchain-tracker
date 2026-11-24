@@ -10,7 +10,7 @@ import { LocalNotifications } from '@capacitor/local-notifications'
 import { fetchAddress } from './api'
 import { getSettings, getWatch } from './store'
 import { fetchBtcWhales, fetchEthWhales, labelOf, probeActivity } from './whale'
-import { num, shortHash } from './format'
+import { num } from './format'
 
 export interface Alert {
   id: string
@@ -72,10 +72,10 @@ async function notify(list: Alert[]) {
     if (!ok) return
     const items = list.slice(0, 5).map((a) => ({
       id: ++nid,
-      title: a.source === 'watch' ? `👀 관심 주소 → ${a.exchange} 입금` : `🐋 고래 → ${a.exchange} 입금`,
-      body: `${num(a.amount, a.amount >= 1000 ? 0 : 2)} ${SYM[a.chain]} · ${a.fromLabel ?? shortHash(a.from, 6)}에서 이동${a.lthPct != null ? (a.lthPct >= 50 ? ` · 장기보유 물량 ${a.lthPct}%` : ` · 단기보유 물량 ${100 - a.lthPct}%`) : ''}`,
+      title: a.source === 'watch' ? `⭐ 관심 주소가 ${a.exchange}(으)로 보냈어요` : `🐋 큰손이 ${a.exchange}(으)로 보냈어요`,
+      body: `${num(a.amount, a.amount >= 1000 ? 0 : 2)} ${SYM[a.chain]} — 팔려고 준비하는 걸 수 있어요${a.lthPct != null ? (a.lthPct >= 50 ? ` · ⏳ 오래 묵힌 코인 ${a.lthPct}%` : ` · 🆕 최근 산 코인 ${100 - a.lthPct}%`) : ''}`,
     }))
-    if (list.length > 5) items.push({ id: ++nid, title: '🐋 거래소 입금 다수 감지', body: `외 ${list.length - 5}건 — 앱에서 확인하세요` })
+    if (list.length > 5) items.push({ id: ++nid, title: '🐋 큰손들이 거래소로 많이 보내고 있어요', body: `외 ${list.length - 5}건 — 앱에서 확인하세요` })
     await LocalNotifications.schedule({ notifications: items })
   } catch { /* ignore */ }
 }

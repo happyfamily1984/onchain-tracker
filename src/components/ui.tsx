@@ -37,7 +37,7 @@ export function Updated({ at, error }: { at: number | null; error: string | null
   )
 }
 
-export function Stat({ label, value, sub, accent }: { label: string; value: ReactNode; sub?: ReactNode; accent?: string }) {
+export function Stat({ label, value, sub, accent }: { label: ReactNode; value: ReactNode; sub?: ReactNode; accent?: string }) {
   return (
     <div className="stat">
       <div className="stat-label">{label}</div>
@@ -47,7 +47,7 @@ export function Stat({ label, value, sub, accent }: { label: string; value: Reac
   )
 }
 
-export function Section({ title, children, right }: { title: string; children: ReactNode; right?: ReactNode }) {
+export function Section({ title, children, right }: { title: ReactNode; children: ReactNode; right?: ReactNode }) {
   return (
     <section className="section">
       <div className="section-head"><h2>{title}</h2>{right}</div>

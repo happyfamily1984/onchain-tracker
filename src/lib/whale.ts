@@ -31,8 +31,8 @@ export const AGE_BANDS = [
   { max: 7, l: '1일~1주' },
   { max: 30, l: '1주~1개월' },
   { max: 90, l: '1~3개월' },
-  { max: 155, l: '3개월~155일' },
-  { max: 365, l: '155일~1년' },
+  { max: 155, l: '3~5개월' },
+  { max: 365, l: '5개월~1년' },
   { max: 730, l: '1~2년' },
   { max: 1825, l: '2~5년' },
   { max: Infinity, l: '5년 이상' },
@@ -439,17 +439,17 @@ export async function fetchStableFlows(blocks = 900): Promise<StableFlow> {
 /** 순유입/순유출에 따른 해석 문구 */
 export function interpret(inflow: number, outflow: number, kind: 'coin' | 'stable'): { tone: 'bull' | 'bear' | 'neutral'; text: string } {
   const total = inflow + outflow
-  if (total === 0) return { tone: 'neutral', text: '해당 구간에 거래소 관련 고래 이동이 감지되지 않았습니다.' }
+  if (total === 0) return { tone: 'neutral', text: '이 시간 동안 큰손이 거래소에 넣거나 뺀 기록이 없어요. 조용한 상태예요.' }
   const r = (inflow - outflow) / total
-  if (Math.abs(r) < 0.15) return { tone: 'neutral', text: '거래소 입금과 출금이 비슷합니다. 뚜렷한 방향성이 없습니다.' }
+  if (Math.abs(r) < 0.15) return { tone: 'neutral', text: '거래소에 들어간 양과 나온 양이 비슷해요. 큰손들이 한쪽으로 쏠리지 않았어요.' }
   if (kind === 'coin') {
     return r > 0
-      ? { tone: 'bear', text: '거래소로 들어가는 물량이 더 많습니다. 매도 대기 물량이 늘어 단기 매도 압력이 커질 수 있습니다.' }
-      : { tone: 'bull', text: '거래소에서 빠져나가는 물량이 더 많습니다. 개인 지갑 보관(장기 보유·축적) 신호로 해석되곤 합니다.' }
+      ? { tone: 'bear', text: '거래소로 들어간 코인이 더 많아요. 큰손들이 팔려고 준비하는 걸 수 있어서, 가격이 눌릴 수 있어요.' }
+      : { tone: 'bull', text: '거래소에서 빠져나간 코인이 더 많아요. 큰손들이 팔지 않고 오래 보관하려는 신호로 봐요.' }
   }
   return r > 0
-    ? { tone: 'bull', text: '스테이블코인이 거래소로 유입되고 있습니다. 코인 매수 대기 자금이 늘고 있다는 신호로 해석되곤 합니다.' }
-    : { tone: 'bear', text: '스테이블코인이 거래소에서 빠져나가고 있습니다. 매수 대기 자금이 줄어드는 흐름입니다.' }
+    ? { tone: 'bull', text: '달러코인이 거래소로 들어오고 있어요. 코인을 사려고 돈을 준비하는 사람이 많다는 신호예요.' }
+    : { tone: 'bear', text: '달러코인이 거래소에서 빠져나가고 있어요. 코인을 살 돈이 줄어드는 흐름이에요.' }
 }
 
 /** LTH/STH 물량 해석 */
@@ -458,12 +458,12 @@ export function interpretAge(all: CoinAge, toEx: CoinAge): { tone: 'bull' | 'bea
   const tot = all.lth + all.sth
   if (exTot > 0) {
     const r = toEx.lth / exTot
-    if (r >= 0.5) return { tone: 'bear', text: `거래소로 들어간 고래 물량의 ${Math.round(r * 100)}%가 155일 이상 묵은 장기보유자(LTH) 코인입니다. 장기보유자의 차익실현·분배는 고점 부근에서 자주 나타나는 신호입니다.` }
-    if (r >= 0.2) return { tone: 'neutral', text: `거래소 입금 물량 중 장기보유자(LTH) 비중이 ${Math.round(r * 100)}%입니다. 단기·장기 물량이 섞여 나오고 있습니다.` }
-    return { tone: 'neutral', text: `거래소 입금 물량 대부분이 단기보유자(STH) 코인입니다. 최근 매수자의 단기 차익실현·손절 물량으로, 장기 추세 영향은 상대적으로 작습니다.` }
+    if (r >= 0.5) return { tone: 'bear', text: `거래소로 간 코인의 ${Math.round(r * 100)}%가 5개월 넘게 묵혀 둔 코인이에요. 오래 버틴 노련한 투자자들이 파는 중일 수 있어요. 이런 움직임은 가격이 많이 오른 고점 근처에서 자주 나왔어요.` }
+    if (r >= 0.2) return { tone: 'neutral', text: `거래소로 간 코인 중 ${Math.round(r * 100)}%가 오래 묵힌 코인이에요. 오래 들고 있던 사람과 최근 산 사람이 섞여서 팔고 있어요.` }
+    return { tone: 'neutral', text: '거래소로 간 코인은 대부분 최근에 산 코인이에요. 단기 투자자들이 사고파는 것이라, 큰 흐름에 주는 영향은 작은 편이에요.' }
   }
-  if (tot === 0) return { tone: 'neutral', text: '분석할 고래 이동이 없습니다.' }
+  if (tot === 0) return { tone: 'neutral', text: '살펴볼 큰손 움직임이 없어요.' }
   const r = all.lth / tot
-  if (r >= 0.5) return { tone: 'neutral', text: `움직인 고래 물량의 ${Math.round(r * 100)}%가 장기보유자 코인입니다. 거래소로 가지 않았다면 지갑 정리·보관 이동일 수 있습니다.` }
-  return { tone: 'neutral', text: '움직인 고래 물량은 주로 단기보유자(STH) 코인입니다. 장기보유자는 대체로 보유를 유지하고 있습니다.' }
+  if (r >= 0.5) return { tone: 'neutral', text: `큰손이 옮긴 코인의 ${Math.round(r * 100)}%가 오래 묵힌 코인이에요. 다만 거래소로 간 게 아니라면, 지갑을 옮기거나 정리한 것일 수 있어요.` }
+  return { tone: 'neutral', text: '큰손이 옮긴 코인은 주로 최근에 산 코인이에요. 오래 들고 있던 사람들은 대체로 그대로 들고 있어요.' }
 }
