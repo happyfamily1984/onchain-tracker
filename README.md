@@ -30,7 +30,7 @@
 npm install
 npm run dev            # 웹 미리보기 (Esc = 뒤로가기)
 npm run build && npx cap sync android
-cd android && ./gradlew bundleRelease   # android/keystore.properties 필요
+cd android && ./gradlew assembleRelease   # APK 생성 (android/keystore.properties 필요)
 ```
 
 `android/keystore.properties` (git 제외):
