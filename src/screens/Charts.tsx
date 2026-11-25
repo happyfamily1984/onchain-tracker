@@ -91,6 +91,7 @@ function CoinChart({ asset }: { asset: ChartAsset }) {
           <span className="dim small">아래 보조지표</span>
           <Segmented value={lower} onChange={setLower} options={[{ v: 'rsi', l: 'RSI' }, { v: 'macd', l: 'MACD' }, { v: 'stoch', l: '스토캐스틱' }]} />
         </div>
+        {ta && <LowerGuide lower={lower} ta={ta} />}
       </div>
 
       {ta && (
@@ -102,6 +103,105 @@ function CoinChart({ asset }: { asset: ChartAsset }) {
         </>
       )}
     </>
+  )
+}
+
+/** 차트 아래 보조지표(RSI·MACD·스토캐스틱) 해설 */
+const GUIDE: Record<Lower, {
+  name: string
+  what: string
+  lines: { color: string; label: string; shape?: 'bar' | 'dash' }[]
+  read: string[]
+  buy: string[]
+  sell: string[]
+  caution: string
+}> = {
+  rsi: {
+    name: 'RSI (상대강도지수)',
+    what: '최근 14개 캔들 동안 “오른 힘”과 “내린 힘” 중 어느 쪽이 더 셌는지를 0~100 점수로 보여줘요. 50이 딱 중간이에요.',
+    lines: [
+      { color: '#ffcf5a', label: '노란 선 = RSI 점수' },
+      { color: '#ff5c6c', label: '빨간 점선 = 70 (과매수 선)', shape: 'dash' },
+      { color: '#22c77a', label: '초록 점선 = 30 (과매도 선)', shape: 'dash' },
+    ],
+    read: [
+      '70 위 → 짧은 기간에 너무 많이 올랐어요(과매수). 쉬어가거나 떨어지기 쉬워요.',
+      '30 아래 → 짧은 기간에 너무 많이 떨어졌어요(과매도). 반등이 나오기 쉬워요.',
+      '50 위 → 사려는 힘이 우세 / 50 아래 → 팔려는 힘이 우세',
+    ],
+    buy: ['30 아래로 내려갔다가 다시 30 위로 올라올 때', '가격은 더 낮아졌는데 RSI 저점은 높아질 때(상승 다이버전스)'],
+    sell: ['70 위로 올라갔다가 다시 70 아래로 내려올 때', '가격은 더 높아졌는데 RSI 고점은 낮아질 때(하락 다이버전스)'],
+    caution: '강한 상승장에서는 RSI가 70 위에 오래 머물 수 있어요. “70 넘었으니 무조건 떨어진다”는 아니에요.',
+  },
+  macd: {
+    name: 'MACD (이동평균 수렴·확산)',
+    what: '짧은 기간 평균(12)과 긴 기간 평균(26)의 차이로 “추세의 방향과 힘”을 보여줘요. 두 평균이 벌어질수록 추세가 강하다는 뜻이에요.',
+    lines: [
+      { color: '#4fb3ff', label: '파란 선 = MACD선 (빠른 선)' },
+      { color: '#ff7a59', label: '주황 선 = 시그널선 (느린 선, MACD의 9개 평균)' },
+      { color: '#22c77a', label: '막대(히스토그램) = 두 선의 차이 (초록 +, 빨강 −)', shape: 'bar' },
+    ],
+    read: [
+      '파란 선이 주황 선 위 → 상승 쪽 힘이 우세해요.',
+      '파란 선이 주황 선 아래 → 하락 쪽 힘이 우세해요.',
+      '막대가 점점 커지면 그 방향의 힘이 세지는 중, 작아지면 힘이 빠지는 중이에요.',
+      '두 선이 0선 위에 있으면 큰 흐름도 상승, 0선 아래면 큰 흐름도 하락이에요.',
+    ],
+    buy: ['파란 선이 주황 선을 아래에서 위로 뚫을 때(골든크로스)', '빨간 막대가 점점 작아질 때(하락 힘이 빠지는 중)'],
+    sell: ['파란 선이 주황 선을 위에서 아래로 뚫을 때(데드크로스)', '초록 막대가 점점 작아질 때(상승 힘이 빠지는 중)'],
+    caution: 'MACD는 평균을 쓰기 때문에 신호가 조금 늦게 나와요. 옆으로 횡보하는 장에서는 신호가 자주 틀려요.',
+  },
+  stoch: {
+    name: '스토캐스틱',
+    what: '최근 14개 캔들의 “가장 낮은 가격 = 0, 가장 높은 가격 = 100”으로 놓고, 지금 가격이 그 사이 어디쯤인지 보여줘요.',
+    lines: [
+      { color: '#4fb3ff', label: '파란 선 = %K (빠른 선, 지금 위치)' },
+      { color: '#ff7a59', label: '주황 선 = %D (느린 선, %K의 평균)' },
+      { color: '#ff5c6c', label: '빨간 점선 = 80 (천장권)', shape: 'dash' },
+      { color: '#22c77a', label: '초록 점선 = 20 (바닥권)', shape: 'dash' },
+    ],
+    read: [
+      '80 위 → 최근 범위의 천장 근처예요. 더 오르기 힘들 수 있어요.',
+      '20 아래 → 최근 범위의 바닥 근처예요. 반등을 노려볼 자리예요.',
+      'RSI보다 빠르게 움직여서 짧은 기간 매매 타이밍을 볼 때 많이 써요.',
+    ],
+    buy: ['20 아래 바닥권에서 파란 선이 주황 선을 위로 뚫을 때'],
+    sell: ['80 위 천장권에서 파란 선이 주황 선을 아래로 뚫을 때'],
+    caution: '아주 민감해서 신호가 자주 나와요. 이평선·MACD 같은 추세 지표와 함께 보는 게 좋아요.',
+  },
+}
+
+function LowerGuide({ lower, ta }: { lower: Lower; ta: NonNullable<ReturnType<typeof analyze>> }) {
+  const g = GUIDE[lower]
+  const item = ta.items.find((i) => i.id === lower)
+  const s = item ? SIG[item.signal] : SIG.neutral
+  return (
+    <div className="lower-guide">
+      <div className="lg-title">📘 {g.name} 해설</div>
+      {item && (
+        <div className="lg-now" style={{ background: s.c + '18', borderColor: s.c + '55' }}>
+          <div className="dim small">지금 상태 · {item.value}</div>
+          <b style={{ color: s.c }}>{item.say}</b>
+          <div className="small" style={{ marginTop: 4, lineHeight: 1.55 }}>{item.text}</div>
+        </div>
+      )}
+      <p className="lg-what">{g.what}</p>
+      <div className="lg-h">차트의 선은 이런 뜻이에요</div>
+      <ul className="lg-lines">
+        {g.lines.map((l) => (
+          <li key={l.label}>
+            <i className={l.shape ?? 'line'} style={{ background: l.shape === 'dash' ? 'none' : l.color, borderColor: l.color }} />{l.label}
+          </li>
+        ))}
+      </ul>
+      <div className="lg-h">이렇게 읽어요</div>
+      <ul className="lg-read">{g.read.map((r) => <li key={r}>{r}</li>)}</ul>
+      <div className="lg-sig">
+        <div><div className="lg-h" style={{ color: '#22c77a' }}>▲ 사는 쪽 신호</div><ul>{g.buy.map((r) => <li key={r}>{r}</li>)}</ul></div>
+        <div><div className="lg-h" style={{ color: '#ff5c6c' }}>▼ 파는 쪽 신호</div><ul>{g.sell.map((r) => <li key={r}>{r}</li>)}</ul></div>
+      </div>
+      <div className="lg-caution">⚠️ {g.caution}</div>
+    </div>
   )
 }
 
