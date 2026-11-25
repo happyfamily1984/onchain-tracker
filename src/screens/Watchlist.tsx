@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { fetchAddress, isValidAddress, useFetch } from '../lib/api'
 import { useBackHandler } from '../lib/back'
 import { chainById } from '../lib/chains'
@@ -14,7 +14,7 @@ const SUGGEST: { chain: 'bitcoin' | 'ethereum'; address: string; label: string }
   { chain: 'ethereum', address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', label: '비탈릭 부테린' },
 ]
 
-export default function Watchlist({ onOpen }: { onOpen: (w: WatchItem) => void }) {
+export default function Watchlist({ onOpen, subtabs }: { onOpen: (w: WatchItem) => void; subtabs?: ReactNode }) {
   const watch = useWatch()
   const [adding, setAdding] = useState(false)
   const [selecting, setSelecting] = useState(false)
@@ -40,9 +40,10 @@ export default function Watchlist({ onOpen }: { onOpen: (w: WatchItem) => void }
           }
         />
       ) : (
-        <Header title="관심 주소" sub="고래·거래소·내 지갑 잔고 추적" right={watch.length > 0 && <button className="text-btn" onClick={() => setSelecting(true)}>편집</button>} />
+        <Header title="🐋 고래 · 관심 주소" sub="큰손·거래소·내 지갑 잔고 추적" right={watch.length > 0 && <button className="text-btn" onClick={() => setSelecting(true)}>편집</button>} />
       )}
       <div className="content">
+        {!selecting && subtabs}
         {watch.length === 0 && (
           <div className="empty">
             <div className="empty-ico">👀</div>

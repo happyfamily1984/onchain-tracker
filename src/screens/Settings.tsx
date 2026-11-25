@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { refreshKrwRate } from '../lib/api'
 import { checkAlerts, ensureNotifyPermission } from '../lib/alerts'
+import { DISCLAIMER_LINES } from '../components/Disclaimer'
 import { num } from '../lib/format'
 import { updateSettings, useSettings } from '../lib/store'
 import { Dialog, Header, Section, Segmented, openExternal } from '../components/ui'
@@ -14,7 +15,7 @@ function Toggle({ label, sub, on, onChange }: { label: string; sub?: string; on:
   )
 }
 
-export const APP_VERSION = '1.2.0'
+export const APP_VERSION = '1.3.0'
 
 export default function Settings({ onPrivacy, onGlossary }: { onPrivacy: () => void; onGlossary: () => void }) {
   const s = useSettings()
@@ -59,6 +60,14 @@ export default function Settings({ onPrivacy, onGlossary }: { onPrivacy: () => v
             <Toggle label="내 관심 주소" sub="관심 주소에 등록한 지갑이 거래소로 보내면 알려줘요" on={s.alertWatch} onChange={(v) => { updateSettings({ alertWatch: v }); if (v) { ensureNotifyPermission(); checkAlerts() } }} />
           </div>
           <p className="dim small pad">앱이 켜져 있을 때 주기적으로 확인하고, 앱을 다시 열면 바로 확인해요. 앱을 완전히 끄면 확인하지 않아요.</p>
+        </Section>
+
+        <Section title="⚠️ 투자 유의사항">
+          <div className="card">
+            <ul className="disc-list" style={{ margin: 0 }}>
+              {DISCLAIMER_LINES.map((l, i) => <li key={i} className={i === DISCLAIMER_LINES.length - 1 ? 'strong' : ''}>{l}</li>)}
+            </ul>
+          </div>
         </Section>
 
         <Section title="데이터 출처">

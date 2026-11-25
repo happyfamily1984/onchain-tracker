@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { explorerUrl, useFetch } from '../lib/api'
 import { ago, compact, money, num, shortHash } from '../lib/format'
 import { useSettings, useWatch } from '../lib/store'
@@ -31,7 +31,7 @@ function useIntro() {
   return { hidden, hide: () => { setHidden(true); try { localStorage.setItem('whale:intro', '0') } catch { /* ignore */ } } }
 }
 
-export default function Whales({ onAddress }: { onAddress: (chain: Coin, address: string) => void }) {
+export default function Whales({ onAddress, subtabs }: { onAddress: (chain: Coin, address: string) => void; subtabs?: ReactNode }) {
   const [coin, setCoinState] = useState<Coin>(memo.coin)
   const [min, setMinState] = useState<Record<Coin, number>>(memo.min)
   const setCoin = (c: Coin) => { memo.coin = c; setCoinState(c) }
@@ -57,11 +57,12 @@ export default function Whales({ onAddress }: { onAddress: (chain: Coin, address
   return (
     <div className="screen">
       <Header
-        title="🐋 큰손(고래) 추적"
+        title="🐋 고래 · 관심 주소"
         sub={<Updated at={q.updatedAt} error={q.error} />}
         right={<RefreshButton loading={q.loading || stable.loading} onClick={() => { q.reload(); stable.reload() }} />}
       />
       <div className="content">
+        {subtabs}
         {!intro.hidden && (
           <div className="card intro" style={{ marginTop: 6 }}>
             <button className="icon-btn x" onClick={intro.hide} aria-label="닫기">✕</button>
