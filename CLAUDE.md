@@ -1,4 +1,5 @@
 # 코인 고래 레이더 (구 온체인 트래커) — 작업 규칙
+- 새 세션은 먼저 `docs/인계사항.md` 를 읽는다 (현재 버전, 빌드 환경 만들기, 서명 키, 데이터 소스 주의점, 남은 할 일).
 - 플레이스토어에 출시하는 앱이다. 패키지명 `com.happyfamily.onchaintracker` 은 절대 바꾸지 않는다.
 - 빌드: `npm run build && npx cap sync android && cd android && ./gradlew bundleRelease assembleRelease`
   - 출시용: `android/app/build/outputs/bundle/release/app-release.aab` / 폰 테스트용: `.../apk/release/app-release.apk`
